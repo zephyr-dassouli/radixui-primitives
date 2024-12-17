@@ -1,3 +1,7 @@
+// Ce fichier est une implémentation de la solution que nous proposons
+// Il dissocie l'état de la checkbox et du div
+// Le problème "infinite depth" est résolu tout en laissant le div cliquable
+
 'use client';
 
 import * as React from 'react';
