@@ -1,10 +1,11 @@
-import * as React from 'react';
+'use client';
+
 import * as Select from '@radix-ui/react-select';
 
 export default function Page() {
   return (
     <>
-      <Select.Root defaultValue="1">
+      <Select.Root defaultValue="1" onValueChange={(value) => console.log(typeof value, value)}>
         <Select.Trigger>
           <Select.Value />
           <Select.Icon>▼</Select.Icon>
@@ -13,15 +14,15 @@ export default function Page() {
           <Select.Content>
             <Select.ScrollUpButton>▲</Select.ScrollUpButton>
             <Select.Viewport>
-              <Select.Item value="1">
+              <Select.Item value={null}>
                 <Select.ItemText>Item 1</Select.ItemText>
                 <Select.ItemIndicator>✔</Select.ItemIndicator>
               </Select.Item>
-              <Select.Item value="2">
+              <Select.Item value={2}>
                 <Select.ItemText>Item 2</Select.ItemText>
                 <Select.ItemIndicator>✔</Select.ItemIndicator>
               </Select.Item>
-              <Select.Item value="3">
+              <Select.Item value={4}>
                 <Select.ItemText>Item 3</Select.ItemText>
                 <Select.ItemIndicator>✔</Select.ItemIndicator>
               </Select.Item>
@@ -31,7 +32,7 @@ export default function Page() {
         </Select.Portal>
       </Select.Root>
 
-      <form>
+      {/* <form>
         <Select.Root>
           <Select.Trigger>
             <Select.Value placeholder="Pick an option" />
@@ -58,7 +59,7 @@ export default function Page() {
             </Select.Content>
           </Select.Portal>
         </Select.Root>
-      </form>
+      </form> */}
     </>
   );
 }

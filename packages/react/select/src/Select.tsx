@@ -1,5 +1,3 @@
-import * as React from 'react';
-import * as ReactDOM from 'react-dom';
 import { clamp } from '@radix-ui/number';
 import { composeEventHandlers } from '@radix-ui/primitive';
 import { createCollection } from '@radix-ui/react-collection';
@@ -21,6 +19,8 @@ import { useLayoutEffect } from '@radix-ui/react-use-layout-effect';
 import { usePrevious } from '@radix-ui/react-use-previous';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { hideOthers } from 'aria-hidden';
+import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import { RemoveScroll } from 'react-remove-scroll';
 
 import type { Scope } from '@radix-ui/react-context';
@@ -1203,7 +1203,7 @@ const [SelectItemContextProvider, useSelectItemContext] =
 
 type SelectItemElement = React.ElementRef<typeof Primitive.div>;
 interface SelectItemProps extends PrimitiveDivProps {
-  value: string;
+  value: string | null | number; // Permet `null` et number en plus de `string`
   disabled?: boolean;
   textValue?: string;
 }
@@ -1217,34 +1217,41 @@ const SelectItem = React.forwardRef<SelectItemElement, SelectItemProps>(
       textValue: textValueProp,
       ...itemProps
     } = props;
+
     const context = useSelectContext(ITEM_NAME, __scopeSelect);
     const contentContext = useSelectContentContext(ITEM_NAME, __scopeSelect);
     const isSelected = context.value === value;
     const [textValue, setTextValue] = React.useState(textValueProp ?? '');
     const [isFocused, setIsFocused] = React.useState(false);
     const composedRefs = useComposedRefs(forwardedRef, (node) =>
-      contentContext.itemRefCallback?.(node, value, disabled)
+      contentContext.itemRefCallback?.(
+        node,
+        value === null ? '' : typeof value === 'number' ? value.toString() : value,
+        disabled
+      )
     );
     const textId = useId();
     const pointerTypeRef = React.useRef<React.PointerEvent['pointerType']>('touch');
 
     const handleSelect = () => {
       if (!disabled) {
-        context.onValueChange(value);
+        context.onValueChange(
+          value === null ? '' : typeof value === 'number' ? value.toString() : value
+        );
         context.onOpenChange(false);
       }
     };
 
     if (value === '') {
       throw new Error(
-        'A <Select.Item /> must have a value prop that is not an empty string. This is because the Select value can be set to an empty string to clear the selection and show the placeholder.'
+        'A <Select.Item /> must have a value prop that is not an empty string. If you want to allow clearing the selection, use null as the value.'
       );
     }
 
     return (
       <SelectItemContextProvider
         scope={__scopeSelect}
-        value={value}
+        value={value === null ? '' : typeof value === 'number' ? value.toString() : value}
         disabled={disabled}
         textId={textId}
         isSelected={isSelected}
@@ -1254,7 +1261,7 @@ const SelectItem = React.forwardRef<SelectItemElement, SelectItemProps>(
       >
         <Collection.ItemSlot
           scope={__scopeSelect}
-          value={value}
+          value={value === null ? '' : typeof value === 'number' ? value.toString() : value}
           disabled={disabled}
           textValue={textValue}
         >
@@ -1262,7 +1269,6 @@ const SelectItem = React.forwardRef<SelectItemElement, SelectItemProps>(
             role="option"
             aria-labelledby={textId}
             data-highlighted={isFocused ? '' : undefined}
-            // `isFocused` caveat fixes stuttering in VoiceOver
             aria-selected={isSelected && isFocused}
             data-state={isSelected ? 'checked' : 'unchecked'}
             aria-disabled={disabled || undefined}
@@ -1273,25 +1279,19 @@ const SelectItem = React.forwardRef<SelectItemElement, SelectItemProps>(
             onFocus={composeEventHandlers(itemProps.onFocus, () => setIsFocused(true))}
             onBlur={composeEventHandlers(itemProps.onBlur, () => setIsFocused(false))}
             onClick={composeEventHandlers(itemProps.onClick, () => {
-              // Open on click when using a touch or pen device
               if (pointerTypeRef.current !== 'mouse') handleSelect();
             })}
             onPointerUp={composeEventHandlers(itemProps.onPointerUp, () => {
-              // Using a mouse you should be able to do pointer down, move through
-              // the list, and release the pointer over the item to select it.
               if (pointerTypeRef.current === 'mouse') handleSelect();
             })}
             onPointerDown={composeEventHandlers(itemProps.onPointerDown, (event) => {
               pointerTypeRef.current = event.pointerType;
             })}
             onPointerMove={composeEventHandlers(itemProps.onPointerMove, (event) => {
-              // Remember pointer type when sliding over to this item from another one
               pointerTypeRef.current = event.pointerType;
               if (disabled) {
                 contentContext.onItemLeave?.();
               } else if (pointerTypeRef.current === 'mouse') {
-                // even though safari doesn't support this option, it's acceptable
-                // as it only means it might scroll a few pixels when using the pointer.
                 event.currentTarget.focus({ preventScroll: true });
               }
             })}
@@ -1304,7 +1304,6 @@ const SelectItem = React.forwardRef<SelectItemElement, SelectItemProps>(
               const isTypingAhead = contentContext.searchRef?.current !== '';
               if (isTypingAhead && event.key === ' ') return;
               if (SELECTION_KEYS.includes(event.key)) handleSelect();
-              // prevent page scroll if using the space key to select an item
               if (event.key === ' ') event.preventDefault();
             })}
           />
@@ -1733,57 +1732,57 @@ const Separator = SelectSeparator;
 const Arrow = SelectArrow;
 
 export {
+  Arrow,
+  Content,
   createSelectScope,
-  //
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectIcon,
-  SelectPortal,
-  SelectContent,
-  SelectViewport,
-  SelectGroup,
-  SelectLabel,
-  SelectItem,
-  SelectItemText,
-  SelectItemIndicator,
-  SelectScrollUpButton,
-  SelectScrollDownButton,
-  SelectSeparator,
-  SelectArrow,
+  Group,
+  Icon,
+  Item,
+  ItemIndicator,
+  ItemText,
+  Label,
+  Portal,
   //
   Root,
+  ScrollDownButton,
+  ScrollUpButton,
+  //
+  Select,
+  SelectArrow,
+  SelectContent,
+  SelectGroup,
+  SelectIcon,
+  SelectItem,
+  SelectItemIndicator,
+  SelectItemText,
+  SelectLabel,
+  SelectPortal,
+  SelectScrollDownButton,
+  SelectScrollUpButton,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+  SelectViewport,
+  Separator,
   Trigger,
   Value,
-  Icon,
-  Portal,
-  Content,
   Viewport,
-  Group,
-  Label,
-  Item,
-  ItemText,
-  ItemIndicator,
-  ScrollUpButton,
-  ScrollDownButton,
-  Separator,
-  Arrow,
 };
 export type {
-  SelectProps,
-  SelectTriggerProps,
-  SelectValueProps,
-  SelectIconProps,
-  SelectPortalProps,
+  SelectArrowProps,
   SelectContentProps,
-  SelectViewportProps,
   SelectGroupProps,
-  SelectLabelProps,
+  SelectIconProps,
+  SelectItemIndicatorProps,
   SelectItemProps,
   SelectItemTextProps,
-  SelectItemIndicatorProps,
-  SelectScrollUpButtonProps,
+  SelectLabelProps,
+  SelectPortalProps,
+  SelectProps,
   SelectScrollDownButtonProps,
+  SelectScrollUpButtonProps,
   SelectSeparatorProps,
-  SelectArrowProps,
+  SelectTriggerProps,
+  SelectValueProps,
+  SelectViewportProps,
 };
