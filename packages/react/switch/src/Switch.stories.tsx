@@ -38,12 +38,21 @@ export const Controlled = () => {
 };
 
 export const WithinForm = () => {
+  // add of the reset key
+  const [resetKey, setResetKey] = React.useState(0);
   const [data, setData] = React.useState({ optional: false, required: false, stopprop: false });
   const [checked, setChecked] = React.useState(false);
+
+  // Add handleReset
+  const handleReset = () => {
+    setResetKey((prev) => prev + 1); // Change the key to force component recreation.
+    setData({ optional: false, required: false, stopprop: false }); // Resetting states.
+  };
 
   return (
     <form
       onSubmit={(event) => event.preventDefault()}
+      onReset={handleReset} // Organize reset
       onChange={(event) => {
         const input = event.target as HTMLInputElement;
         setData((prevData) => ({ ...prevData, [input.name]: input.checked }));
@@ -53,10 +62,13 @@ export const WithinForm = () => {
         <legend>optional checked: {String(data.optional)}</legend>
         <label>
           <Switch.Root
+            key={`${resetKey}-optional`} // Add the key
             className={rootClass()}
             name="optional"
             checked={checked}
             onCheckedChange={setChecked}
+            defaultChecked={data.optional}
+
           >
             <Switch.Thumb className={thumbClass()} />
           </Switch.Root>{' '}
@@ -69,7 +81,13 @@ export const WithinForm = () => {
 
       <fieldset>
         <legend>required checked: {String(data.required)}</legend>
-        <Switch.Root className={rootClass()} name="required" required>
+        <Switch.Root           
+          key={`${resetKey}-required`} // Add the key
+          className={rootClass()} 
+          name="required" 
+          required
+          defaultChecked={data.required}
+        >
           <Switch.Thumb className={thumbClass()} />
         </Switch.Root>
       </fieldset>
@@ -80,9 +98,11 @@ export const WithinForm = () => {
       <fieldset>
         <legend>stop propagation checked: {String(data.stopprop)}</legend>
         <Switch.Root
+          key={`${resetKey}-stopprop`} // Add the key
           className={rootClass()}
           name="stopprop"
           onClick={(event) => event.stopPropagation()}
+          defaultChecked={data.stopprop}
         >
           <Switch.Thumb className={thumbClass()} />
         </Switch.Root>
@@ -92,6 +112,7 @@ export const WithinForm = () => {
       <br />
 
       <button>Submit</button>
+      <button type="reset">Reset</button> {/* Button reset */}
     </form>
   );
 };
