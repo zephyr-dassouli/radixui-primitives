@@ -488,36 +488,43 @@ PopoverArrow.displayName = ARROW_NAME;
  * SubTrigger
  * -----------------------------------------------------------------------------------------------*/
 
+// Constant for the name of the sub-trigger popover
 const SUB_TRIGGER_NAME = 'PopoverSubTrigger';
 
+// Types for the element and properties of the sub-trigger popover
 type SubTriggerElement = React.ElementRef<typeof Primitive.button>;
 type SubTriggerProps = React.ComponentPropsWithoutRef<typeof Primitive.button>;
 
+// Defining the PopoverSubTrigger component with the ref forwarding mechanism
 const PopoverSubTrigger = React.forwardRef<SubTriggerElement, ScopedProps<SubTriggerProps>>(
   (props, forwardedRef) => {
-    const { __scopePopover, ...triggerProps } = props;
-    const context = usePopoverContext(SUB_TRIGGER_NAME, __scopePopover);
-    const [subOpen, setSubOpen] = React.useState(false);
+    const { __scopePopover, ...triggerProps } = props; // Extract the __scopePopover from props
+    const context = usePopoverContext(SUB_TRIGGER_NAME, __scopePopover); // Use the popover context to get context info
+    const [subOpen, setSubOpen] = React.useState(false); // Local state to track whether the sub-popover is open or closed
 
+    // Function to toggle the sub-popover open/close state
     const handleToggle = () => {
-      setSubOpen((prevOpen) => !prevOpen);
+      setSubOpen((prevOpen) => !prevOpen); // Inverts the current open state
     };
 
     return (
       <>
+        {/* Main trigger button for the popover */}
         <Primitive.button
           type="button"
-          aria-haspopup="menu"
-          aria-expanded={subOpen}
-          aria-controls={context.contentId}
-          data-state={getState(subOpen)}
-          {...triggerProps}
-          ref={forwardedRef}
-          onClick={composeEventHandlers(triggerProps.onClick, handleToggle)}
+          aria-haspopup="menu" // Indicates that a menu is available
+          aria-expanded={subOpen} // Declares if the sub-popover is open
+          aria-controls={context.contentId} // The ID of the content controlled by this button
+          data-state={getState(subOpen)} // Assigns the current open/closed state for styling
+          {...triggerProps} // Passes the other props down to the button
+          ref={forwardedRef} // Forwards the ref to the button element
+          onClick={composeEventHandlers(triggerProps.onClick, handleToggle)} // Combines the click handlers (clicking the button)
         />
+
+        {/* Renders the sub-popover content when 'subOpen' is true */}
         {subOpen && (
           <PopoverSubContent __scopePopover={__scopePopover}>
-            <p>This is the content of Sub Popover 1</p>
+            <p>This is the content of Sub Popover 1</p> {/* Content of the sub-popover */}
           </PopoverSubContent>
         )}
       </>
@@ -525,36 +532,40 @@ const PopoverSubTrigger = React.forwardRef<SubTriggerElement, ScopedProps<SubTri
   }
 );
 
-PopoverSubTrigger.displayName = SUB_TRIGGER_NAME;
+PopoverSubTrigger.displayName = SUB_TRIGGER_NAME; // Sets the display name for the component for debugging purposes
 
 /* -------------------------------------------------------------------------------------------------
  * SubContent
  * -----------------------------------------------------------------------------------------------*/
 
+// Constant for the name of the sub-popover content
 const SUB_CONTENT_NAME = 'PopoverSubContent';
 
+// Types for the element and properties of the sub-popover content
 type SubContentElement = React.ElementRef<typeof PopoverContent>;
 interface SubContentProps extends PopoverContentProps {}
 
+// Defining the PopoverSubContent component with the ref forwarding mechanism
 const PopoverSubContent = React.forwardRef<SubContentElement, ScopedProps<SubContentProps>>(
   (props, forwardedRef) => {
-    const { __scopePopover, ...contentProps } = props;
+    const { __scopePopover, ...contentProps } = props; // Extract the __scopePopover from props
 
     return (
       <PopoverContent
-        {...contentProps}
-        ref={forwardedRef}
-        forceMount={true}
-        onClick={(e) => e.stopPropagation()} // Empêche la fermeture du Popover parent
+        {...contentProps} // Passes down the properties to the PopoverContent component
+        ref={forwardedRef} // Forwards the ref to the PopoverContent component
+        forceMount={true} // Forces the sub-popover content to mount even if hidden
+        onClick={(e) => e.stopPropagation()} // Prevents closing the parent Popover when clicking inside the content
       />
     );
   }
 );
 
-PopoverSubContent.displayName = SUB_CONTENT_NAME;
+PopoverSubContent.displayName = SUB_CONTENT_NAME; // Sets the display name for the component for debugging purposes
 
 /* -----------------------------------------------------------------------------------------------*/
 
+// Exports the components for use in other files
 export { PopoverSubContent, PopoverSubTrigger };
 
 /* -----------------------------------------------------------------------------------------------*/
