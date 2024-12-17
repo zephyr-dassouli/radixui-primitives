@@ -1203,7 +1203,7 @@ const [SelectItemContextProvider, useSelectItemContext] =
 
 type SelectItemElement = React.ElementRef<typeof Primitive.div>;
 interface SelectItemProps extends PrimitiveDivProps {
-  value: string | null | number; // Permet `null` et number en plus de `string`
+  value: string | null | number; // Allows `null` and `number` in addition to `string`
   disabled?: boolean;
   textValue?: string;
 }
@@ -1221,11 +1221,15 @@ const SelectItem = React.forwardRef<SelectItemElement, SelectItemProps>(
     const context = useSelectContext(ITEM_NAME, __scopeSelect);
     const contentContext = useSelectContentContext(ITEM_NAME, __scopeSelect);
     const isSelected = context.value === value;
+
+    // Initialize the text to display if `textValueProp` is provided.
     const [textValue, setTextValue] = React.useState(textValueProp ?? '');
     const [isFocused, setIsFocused] = React.useState(false);
     const composedRefs = useComposedRefs(forwardedRef, (node) =>
       contentContext.itemRefCallback?.(
         node,
+        // Here, we work around the issue by treating `null` as an empty string
+        // and `number` as the string representation of the number.
         value === null ? '' : typeof value === 'number' ? value.toString() : value,
         disabled
       )
@@ -1235,6 +1239,8 @@ const SelectItem = React.forwardRef<SelectItemElement, SelectItemProps>(
 
     const handleSelect = () => {
       if (!disabled) {
+        // During selection, we apply the same transformation
+        // to handle `null` and `number` appropriately.
         context.onValueChange(
           value === null ? '' : typeof value === 'number' ? value.toString() : value
         );
@@ -1251,6 +1257,7 @@ const SelectItem = React.forwardRef<SelectItemElement, SelectItemProps>(
     return (
       <SelectItemContextProvider
         scope={__scopeSelect}
+        // We apply this transformation to `value` again here
         value={value === null ? '' : typeof value === 'number' ? value.toString() : value}
         disabled={disabled}
         textId={textId}
@@ -1261,6 +1268,7 @@ const SelectItem = React.forwardRef<SelectItemElement, SelectItemProps>(
       >
         <Collection.ItemSlot
           scope={__scopeSelect}
+          // Again, we apply the same logic to transform `value`
           value={value === null ? '' : typeof value === 'number' ? value.toString() : value}
           disabled={disabled}
           textValue={textValue}
