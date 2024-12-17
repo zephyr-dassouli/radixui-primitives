@@ -57,13 +57,25 @@ export const Styled = () => (
 );
 
 export const Controlled = () => {
-  const [value, setValue] = React.useState('uk');
+  const [value, setValue] = React.useState<string | null>('uk');
+
+
+  // This function handles changes to the value. It converts numeric inputs to strings before updating the state, and directly updates with strings or null otherwise.
+
+  const handleValueChange = (newValue: string | number | null) => {
+    if (typeof newValue === 'number') {
+      setValue(String(newValue)); // Converts `number` into `string`
+    } else {
+      setValue(newValue); // Here use `string` or `null`
+    }
+  };
+
   return (
     <div style={{ display: 'flex', gap: 20, padding: 50 }}>
       {POSITIONS.map((position) => (
         <Label key={position}>
           Choose a country:
-          <Select.Root value={value} onValueChange={setValue}>
+          <Select.Root value={value} onValueChange={handleValueChange}> {/* Utilisez handleValueChange ici */}
             <Select.Trigger className={triggerClass()}>
               <Select.Value
                 aria-label={
@@ -819,6 +831,16 @@ export const Cypress = () => {
   const [data, setData] = React.useState<{ size?: 'S' | 'M' | 'L' }>({});
   const [model, setModel] = React.useState<string | undefined>('');
 
+  // Management function for onValueChange
+  // This function updates the model state. It sets the state to undefined if the new value is a number or null , otherwise it updates the state with the new string value.
+  const handleModelChange = (newValue: string | number | null) => {
+    if (typeof newValue === 'number' || newValue === null) {
+      setModel(undefined); // ensure that model stays `undefined` if value is `number` or `null`
+    } else {
+      setModel(newValue); // use directly `string` if available
+    }
+  };
+
   function handleChange(event: React.FormEvent<HTMLFormElement>) {
     const formData = new FormData(event.currentTarget);
     setData(Object.fromEntries((formData as any).entries()));
@@ -878,7 +900,7 @@ export const Cypress = () => {
       <div style={{ padding: 50 }}>
         <Label>
           choose a model
-          <Select.Root name="model" value={model} onValueChange={setModel}>
+          <Select.Root name="model" value={model} onValueChange={handleModelChange}>
             <Select.Trigger className={triggerClass()}>
               <Select.Value placeholder="…" />
               <Select.Icon />
