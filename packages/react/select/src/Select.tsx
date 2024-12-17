@@ -1,3 +1,5 @@
+import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import { clamp } from '@radix-ui/number';
 import { composeEventHandlers } from '@radix-ui/primitive';
 import { createCollection } from '@radix-ui/react-collection';
@@ -19,8 +21,6 @@ import { useLayoutEffect } from '@radix-ui/react-use-layout-effect';
 import { usePrevious } from '@radix-ui/react-use-previous';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { hideOthers } from 'aria-hidden';
-import * as React from 'react';
-import * as ReactDOM from 'react-dom';
 import { RemoveScroll } from 'react-remove-scroll';
 
 import type { Scope } from '@radix-ui/react-context';
@@ -36,7 +36,7 @@ const SELECTION_KEYS = [' ', 'Enter'];
 
 const SELECT_NAME = 'Select';
 
-type ItemData = { value: string; disabled: boolean; textValue: string };
+type ItemData = { value: string | number | null; disabled: boolean; textValue: string };
 const [Collection, useCollection, createCollectionScope] = createCollection<
   SelectItemElement,
   ItemData
@@ -57,8 +57,8 @@ type SelectContextValue = {
   valueNodeHasChildren: boolean;
   onValueNodeHasChildrenChange(hasChildren: boolean): void;
   contentId: string;
-  value?: string;
-  onValueChange(value: string): void;
+  value?: string | number | null; // Extend of type accepted here
+  onValueChange(value: string | number | null): void; // Extend of type
   open: boolean;
   required?: boolean;
   onOpenChange(open: boolean): void;
@@ -78,21 +78,22 @@ type SelectNativeOptionsContextValue = {
 const [SelectNativeOptionsProvider, useSelectNativeOptionsContext] =
   createSelectContext<SelectNativeOptionsContextValue>(SELECT_NAME);
 
-interface SelectProps {
-  children?: React.ReactNode;
-  value?: string;
-  defaultValue?: string;
-  onValueChange?(value: string): void;
-  open?: boolean;
-  defaultOpen?: boolean;
-  onOpenChange?(open: boolean): void;
-  dir?: Direction;
-  name?: string;
-  autoComplete?: string;
-  disabled?: boolean;
-  required?: boolean;
-  form?: string;
-}
+  interface SelectProps {
+    children?: React.ReactNode;
+    value?: string | number | null; // Etendue du type
+    defaultValue?: string | number | null; // Étendue 
+    onValueChange?(value: string | number | null): void; // Étendue
+    open?: boolean;
+    defaultOpen?: boolean;
+    onOpenChange?(open: boolean): void;
+    dir?: Direction;
+    name?: string;
+    autoComplete?: string;
+    disabled?: boolean;
+    required?: boolean;
+    form?: string;
+  }
+  
 
 const Select: React.FC<SelectProps> = (props: ScopedProps<SelectProps>) => {
   const {
@@ -128,6 +129,23 @@ const Select: React.FC<SelectProps> = (props: ScopedProps<SelectProps>) => {
   });
   const triggerPointerDownPosRef = React.useRef<{ x: number; y: number } | null>(null);
 
+
+   // Debugging values with useEffect
+   React.useEffect(() => {
+    console.log("Debugging Select context values:", {
+      trigger,
+      valueNode,
+      valueNodeHasChildren,
+      open,
+      value,
+      direction,
+      disabled,
+      required,
+    });
+  }, [trigger, valueNode, valueNodeHasChildren, open, value, direction, disabled, required]);
+
+
+
   // We set this to true by default so that events bubble to forms without JS (SSR)
   const isFormControl = trigger ? form || !!trigger.closest('form') : true;
   const [nativeOptionsSet, setNativeOptionsSet] = React.useState(new Set<NativeOption>());
@@ -143,13 +161,19 @@ const Select: React.FC<SelectProps> = (props: ScopedProps<SelectProps>) => {
 
   return (
     <PopperPrimitive.Root {...popperScope}>
+
+
       <SelectProvider
         required={required}
         scope={__scopeSelect}
         trigger={trigger}
         onTriggerChange={setTrigger}
         valueNode={valueNode}
-        onValueNodeChange={setValueNode}
+        onValueNodeChange={(node) => {
+          console.log('Updating valueNode in Select context:', node);
+          setValueNode(node);
+        }}
+        
         valueNodeHasChildren={valueNodeHasChildren}
         onValueNodeHasChildrenChange={setValueNodeHasChildren}
         contentId={useId()}
@@ -161,6 +185,7 @@ const Select: React.FC<SelectProps> = (props: ScopedProps<SelectProps>) => {
         triggerPointerDownPosRef={triggerPointerDownPosRef}
         disabled={disabled}
       >
+        
         <Collection.Provider scope={__scopeSelect}>
           <SelectNativeOptionsProvider
             scope={props.__scopeSelect}
@@ -187,7 +212,7 @@ const Select: React.FC<SelectProps> = (props: ScopedProps<SelectProps>) => {
             tabIndex={-1}
             name={name}
             autoComplete={autoComplete}
-            value={value}
+            value={value !== null ? String(value) : ""} // Convert `number` to `string` and handle `null`.
             // enable form autofill
             onChange={(event) => setValue(event.target.value)}
             disabled={disabled}
@@ -220,23 +245,32 @@ const SelectTrigger = React.forwardRef<SelectTriggerElement, SelectTriggerProps>
     const popperScope = usePopperScope(__scopeSelect);
     const context = useSelectContext(TRIGGER_NAME, __scopeSelect);
     const isDisabled = context.disabled || disabled;
-    const composedRefs = useComposedRefs(forwardedRef, context.onTriggerChange);
+   // Add logging to the composedRefs
+   const composedRefs = useComposedRefs(forwardedRef, context.onTriggerChange);
     const getItems = useCollection(__scopeSelect);
     const pointerTypeRef = React.useRef<React.PointerEvent['pointerType']>('touch');
 
-    const [searchRef, handleTypeaheadSearch, resetTypeahead] = useTypeaheadSearch((search) => {
-      const enabledItems = getItems().filter((item) => !item.disabled);
-      const currentItem = enabledItems.find((item) => item.value === context.value);
-      const nextItem = findNextItem(enabledItems, search, currentItem);
-      if (nextItem !== undefined) {
-        context.onValueChange(nextItem.value);
-      }
-    });
+// we should receive `resetTypeahead` from `useTypeaheadSearch`
+const [searchRef, handleTypeaheadSearch, resetTypeahead] = useTypeaheadSearch((search) => {
+  const enabledItems = getItems().filter((item) => !item.disabled);
+  const currentItem = enabledItems.find((item) => item.ref.current === document.activeElement);
+
+  // Convertion of `search` in string. 
+  // search refers to what you type into a search box, and it helps to quickly find and select items from a list by matching your typed characters with the items available.
+  const searchString = typeof search === 'number' ? String(search) : search;
+  const nextItem = findNextItem(enabledItems, searchString, currentItem);
+
+  if (nextItem) {
+    setTimeout(() => (nextItem.ref.current as HTMLElement).focus());
+  }
+});
 
     const handleOpen = (pointerEvent?: React.MouseEvent | React.PointerEvent) => {
       if (!isDisabled) {
+        console.log('Opening menu...'); //add logging here
         context.onOpenChange(true);
         // reset typeahead when we open
+        // the resetTypeahead function clears any previous search input when opening the menu , allowing for a new start in searching items.
         resetTypeahead();
       }
 
@@ -245,6 +279,7 @@ const SelectTrigger = React.forwardRef<SelectTriggerElement, SelectTriggerProps>
           x: Math.round(pointerEvent.pageX),
           y: Math.round(pointerEvent.pageY),
         };
+        console.log('Pointer position:',context.triggerPointerDownPosRef.current); //log to get pointer position
       }
     };
 
@@ -253,16 +288,22 @@ const SelectTrigger = React.forwardRef<SelectTriggerElement, SelectTriggerProps>
         <Primitive.button
           type="button"
           role="combobox"
-          aria-controls={context.contentId}
+          aria-controls={
+            context.contentId && typeof context.contentId === 'string' ? context.contentId : undefined
+          } // ensure 'contentId' is a valid string before assigning to 'aria-controls' to prevent accessibility issues I ecountered
+          
+           
           aria-expanded={context.open}
           aria-required={context.required}
           aria-autocomplete="none"
-          dir={context.dir}
+          dir={context.dir}    
           data-state={context.open ? 'open' : 'closed'}
           disabled={isDisabled}
           data-disabled={isDisabled ? '' : undefined}
-          data-placeholder={shouldShowPlaceholder(context.value) ? '' : undefined}
-          {...triggerProps}
+          data-placeholder={
+            typeof context.value === 'string' ? (shouldShowPlaceholder(context.value) ? '' : undefined) : undefined
+          }
+          
           ref={composedRefs}
           // Enable compatibility with native label or custom `Label` "click" for Safari:
           onClick={composeEventHandlers(triggerProps.onClick, (event) => {
@@ -334,7 +375,25 @@ const SelectValue = React.forwardRef<SelectValueElement, SelectValueProps>(
     const context = useSelectContext(VALUE_NAME, __scopeSelect);
     const { onValueNodeHasChildrenChange } = context;
     const hasChildren = children !== undefined;
-    const composedRefs = useComposedRefs(forwardedRef, context.onValueNodeChange);
+    const composedRefs = useComposedRefs(forwardedRef, (node) => {
+      console.log('ValueNode Ref:', node); // Log of node DOM
+      if (node) {
+        context.onValueNodeChange(node); // Ensure that node is transmited here
+      
+      } else {
+        console.log('ValueNode Ref is null');
+      }
+    });
+    
+       // Triggers an effect on every change of `context.value`, `placeholder`, or `children
+       React.useEffect(() => {
+        console.log('Rendered SelectValue:', {
+          contextValue: context.value,
+          placeholder,
+          children,
+          shouldShowPlaceholder: typeof context.value === 'string' && shouldShowPlaceholder(context.value),
+        });
+      }, [context.value, placeholder, children]);
 
     useLayoutEffect(() => {
       onValueNodeHasChildrenChange(hasChildren);
@@ -348,11 +407,16 @@ const SelectValue = React.forwardRef<SelectValueElement, SelectValueProps>(
         // through the item they came from
         style={{ pointerEvents: 'none' }}
       >
-        {shouldShowPlaceholder(context.value) ? <>{placeholder}</> : children}
+        {typeof context.value === 'string' && shouldShowPlaceholder(context.value)
+          ? <>{placeholder}</>
+          : children}
+          
       </Primitive.span>
-    );
+    );// // If `context.value` is a string and should show a placeholder according to its value, display `placeholder` otherwise , display `children`.
+
   }
 );
+
 
 SelectValue.displayName = VALUE_NAME;
 
@@ -448,12 +512,12 @@ type SelectContentContextValue = {
   content?: SelectContentElement | null;
   viewport?: SelectViewportElement | null;
   onViewportChange?: (node: SelectViewportElement | null) => void;
-  itemRefCallback?: (node: SelectItemElement | null, value: string, disabled: boolean) => void;
+  itemRefCallback?: (node: SelectItemElement | null, value: string | number | null, disabled: boolean) => void;//Extend of types here again
   selectedItem?: SelectItemElement | null;
   onItemLeave?: () => void;
   itemTextRefCallback?: (
     node: SelectItemTextElement | null,
-    value: string,
+    value: string | number | null,
     disabled: boolean
   ) => void;
   focusSelectedItem?: () => void;
@@ -625,7 +689,10 @@ const SelectContentImpl = React.forwardRef<SelectContentImplElement, SelectConte
     const [searchRef, handleTypeaheadSearch] = useTypeaheadSearch((search) => {
       const enabledItems = getItems().filter((item) => !item.disabled);
       const currentItem = enabledItems.find((item) => item.ref.current === document.activeElement);
-      const nextItem = findNextItem(enabledItems, search, currentItem);
+      
+      // Converting `search` to `string` to   solve type problem
+      const nextItem = findNextItem(enabledItems, String(search), currentItem);
+      
       if (nextItem) {
         /**
          * Imperative focus during keydown is risky so we prevent React's batching updates
@@ -634,9 +701,10 @@ const SelectContentImpl = React.forwardRef<SelectContentImplElement, SelectConte
         setTimeout(() => (nextItem.ref.current as HTMLElement).focus());
       }
     });
+    
 
     const itemRefCallback = React.useCallback(
-      (node: SelectItemElement | null, value: string, disabled: boolean) => {
+      (node: SelectItemElement | null, value: string | number | null, disabled: boolean) => {// extend of types here
         const isFirstValidItem = !firstValidItemFoundRef.current && !disabled;
         const isSelectedItem = context.value !== undefined && context.value === value;
         if (isSelectedItem || isFirstValidItem) {
@@ -648,7 +716,7 @@ const SelectContentImpl = React.forwardRef<SelectContentImplElement, SelectConte
     );
     const handleItemLeave = React.useCallback(() => content?.focus(), [content]);
     const itemTextRefCallback = React.useCallback(
-      (node: SelectItemTextElement | null, value: string, disabled: boolean) => {
+      (node: SelectItemTextElement | null, value: string | number | null, disabled: boolean) => {// Extend of types here again
         const isFirstValidItem = !firstValidItemFoundRef.current && !disabled;
         const isSelectedItem = context.value !== undefined && context.value === value;
         if (isSelectedItem || isFirstValidItem) {
@@ -1191,7 +1259,7 @@ SelectLabel.displayName = LABEL_NAME;
 const ITEM_NAME = 'SelectItem';
 
 type SelectItemContextValue = {
-  value: string;
+  value: string | number | null; // Extend of type here
   disabled: boolean;
   textId: string;
   isSelected: boolean;
@@ -1203,7 +1271,7 @@ const [SelectItemContextProvider, useSelectItemContext] =
 
 type SelectItemElement = React.ElementRef<typeof Primitive.div>;
 interface SelectItemProps extends PrimitiveDivProps {
-  value: string | null | number; // Allows `null` and `number` in addition to `string`
+  value: string | number | null;
   disabled?: boolean;
   textValue?: string;
 }
@@ -1217,48 +1285,34 @@ const SelectItem = React.forwardRef<SelectItemElement, SelectItemProps>(
       textValue: textValueProp,
       ...itemProps
     } = props;
-
     const context = useSelectContext(ITEM_NAME, __scopeSelect);
     const contentContext = useSelectContentContext(ITEM_NAME, __scopeSelect);
     const isSelected = context.value === value;
-
-    // Initialize the text to display if `textValueProp` is provided.
     const [textValue, setTextValue] = React.useState(textValueProp ?? '');
     const [isFocused, setIsFocused] = React.useState(false);
     const composedRefs = useComposedRefs(forwardedRef, (node) =>
-      contentContext.itemRefCallback?.(
-        node,
-        // Here, we work around the issue by treating `null` as an empty string
-        // and `number` as the string representation of the number.
-        value === null ? '' : typeof value === 'number' ? value.toString() : value,
-        disabled
-      )
+      contentContext.itemRefCallback?.(node, value, disabled)
     );
     const textId = useId();
     const pointerTypeRef = React.useRef<React.PointerEvent['pointerType']>('touch');
 
     const handleSelect = () => {
       if (!disabled) {
-        // During selection, we apply the same transformation
-        // to handle `null` and `number` appropriately.
-        context.onValueChange(
-          value === null ? '' : typeof value === 'number' ? value.toString() : value
-        );
+        context.onValueChange(value);
         context.onOpenChange(false);
       }
     };
 
     if (value === '') {
       throw new Error(
-        'A <Select.Item /> must have a value prop that is not an empty string. If you want to allow clearing the selection, use null as the value.'
+        'A <Select.Item /> must have a value prop that is not an empty string. This is because the Select value can be set to an empty string to clear the selection and show the placeholder.'
       );
     }
 
     return (
       <SelectItemContextProvider
         scope={__scopeSelect}
-        // We apply this transformation to `value` again here
-        value={value === null ? '' : typeof value === 'number' ? value.toString() : value}
+        value={value}
         disabled={disabled}
         textId={textId}
         isSelected={isSelected}
@@ -1268,8 +1322,7 @@ const SelectItem = React.forwardRef<SelectItemElement, SelectItemProps>(
       >
         <Collection.ItemSlot
           scope={__scopeSelect}
-          // Again, we apply the same logic to transform `value`
-          value={value === null ? '' : typeof value === 'number' ? value.toString() : value}
+          value={value}
           disabled={disabled}
           textValue={textValue}
         >
@@ -1277,6 +1330,7 @@ const SelectItem = React.forwardRef<SelectItemElement, SelectItemProps>(
             role="option"
             aria-labelledby={textId}
             data-highlighted={isFocused ? '' : undefined}
+            // `isFocused` caveat fixes stuttering in VoiceOver
             aria-selected={isSelected && isFocused}
             data-state={isSelected ? 'checked' : 'unchecked'}
             aria-disabled={disabled || undefined}
@@ -1287,19 +1341,25 @@ const SelectItem = React.forwardRef<SelectItemElement, SelectItemProps>(
             onFocus={composeEventHandlers(itemProps.onFocus, () => setIsFocused(true))}
             onBlur={composeEventHandlers(itemProps.onBlur, () => setIsFocused(false))}
             onClick={composeEventHandlers(itemProps.onClick, () => {
+              // Open on click when using a touch or pen device
               if (pointerTypeRef.current !== 'mouse') handleSelect();
             })}
             onPointerUp={composeEventHandlers(itemProps.onPointerUp, () => {
+              // Using a mouse you should be able to do pointer down, move through
+              // the list, and release the pointer over the item to select it.
               if (pointerTypeRef.current === 'mouse') handleSelect();
             })}
             onPointerDown={composeEventHandlers(itemProps.onPointerDown, (event) => {
               pointerTypeRef.current = event.pointerType;
             })}
             onPointerMove={composeEventHandlers(itemProps.onPointerMove, (event) => {
+              // Remember pointer type when sliding over to this item from another one
               pointerTypeRef.current = event.pointerType;
               if (disabled) {
                 contentContext.onItemLeave?.();
               } else if (pointerTypeRef.current === 'mouse') {
+                // even though safari doesn't support this option, it's acceptable
+                // as it only means it might scroll a few pixels when using the pointer.
                 event.currentTarget.focus({ preventScroll: true });
               }
             })}
@@ -1312,6 +1372,7 @@ const SelectItem = React.forwardRef<SelectItemElement, SelectItemProps>(
               const isTypingAhead = contentContext.searchRef?.current !== '';
               if (isTypingAhead && event.key === ' ') return;
               if (SELECTION_KEYS.includes(event.key)) handleSelect();
+              // prevent page scroll if using the space key to select an item
               if (event.key === ' ') event.preventDefault();
             })}
           />
@@ -1351,7 +1412,12 @@ const SelectItemText = React.forwardRef<SelectItemTextElement, SelectItemTextPro
     const textContent = itemTextNode?.textContent;
     const nativeOption = React.useMemo(
       () => (
-        <option key={itemContext.value} value={itemContext.value} disabled={itemContext.disabled}>
+        <option // handle cases where 'itemContext.value' is null by setting the key to an empty string and the value to undefined.
+
+          key={itemContext.value !== null ? itemContext.value : ''} // handle 'null'
+          value={itemContext.value !== null ? itemContext.value : undefined} // handle 'null' here too
+          disabled={itemContext.disabled}
+        >
           {textContent}
         </option>
       ),
@@ -1621,7 +1687,8 @@ const BubbleSelect = React.forwardRef<HTMLSelectElement, React.ComponentPropsWit
       const setValue = descriptor.set;
       if (prevValue !== value && setValue) {
         const event = new Event('change', { bubbles: true });
-        setValue.call(select, value);
+        setValue.call(select, value !== null ? String(value) : '');//// Convert `value` to a string if not null , otherwise set it to an empty string, ensuring good handling of 'null' values.
+
         select.dispatchEvent(event);
       }
     }, [prevValue, value]);
@@ -1648,7 +1715,7 @@ const BubbleSelect = React.forwardRef<HTMLSelectElement, React.ComponentPropsWit
 
 BubbleSelect.displayName = 'BubbleSelect';
 
-function useTypeaheadSearch(onSearchChange: (search: string) => void) {
+function useTypeaheadSearch(onSearchChange: (search: string | number) => void) {// extend of type here
   const handleSearchChange = useCallbackRef(onSearchChange);
   const searchRef = React.useRef('');
   const timerRef = React.useRef(0);
@@ -1740,57 +1807,57 @@ const Separator = SelectSeparator;
 const Arrow = SelectArrow;
 
 export {
-  Arrow,
-  Content,
   createSelectScope,
-  Group,
-  Icon,
-  Item,
-  ItemIndicator,
-  ItemText,
-  Label,
-  Portal,
-  //
-  Root,
-  ScrollDownButton,
-  ScrollUpButton,
   //
   Select,
-  SelectArrow,
-  SelectContent,
-  SelectGroup,
-  SelectIcon,
-  SelectItem,
-  SelectItemIndicator,
-  SelectItemText,
-  SelectLabel,
-  SelectPortal,
-  SelectScrollDownButton,
-  SelectScrollUpButton,
-  SelectSeparator,
   SelectTrigger,
   SelectValue,
+  SelectIcon,
+  SelectPortal,
+  SelectContent,
   SelectViewport,
-  Separator,
+  SelectGroup,
+  SelectLabel,
+  SelectItem,
+  SelectItemText,
+  SelectItemIndicator,
+  SelectScrollUpButton,
+  SelectScrollDownButton,
+  SelectSeparator,
+  SelectArrow,
+  //
+  Root,
   Trigger,
   Value,
+  Icon,
+  Portal,
+  Content,
   Viewport,
+  Group,
+  Label,
+  Item,
+  ItemText,
+  ItemIndicator,
+  ScrollUpButton,
+  ScrollDownButton,
+  Separator,
+  Arrow,
 };
 export type {
-  SelectArrowProps,
-  SelectContentProps,
-  SelectGroupProps,
-  SelectIconProps,
-  SelectItemIndicatorProps,
-  SelectItemProps,
-  SelectItemTextProps,
-  SelectLabelProps,
-  SelectPortalProps,
   SelectProps,
-  SelectScrollDownButtonProps,
-  SelectScrollUpButtonProps,
-  SelectSeparatorProps,
   SelectTriggerProps,
   SelectValueProps,
+  SelectIconProps,
+  SelectPortalProps,
+  SelectContentProps,
   SelectViewportProps,
+  SelectGroupProps,
+  SelectLabelProps,
+  SelectItemProps,
+  SelectItemTextProps,
+  SelectItemIndicatorProps,
+  SelectScrollUpButtonProps,
+  SelectScrollDownButtonProps,
+  SelectSeparatorProps,
+  SelectArrowProps,
 };
