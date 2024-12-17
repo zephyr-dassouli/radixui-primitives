@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { composeEventHandlers } from '@radix-ui/primitive';
 import { useComposedRefs } from '@radix-ui/react-compose-refs';
 import { createContextScope } from '@radix-ui/react-context';
@@ -14,6 +13,7 @@ import { Primitive } from '@radix-ui/react-primitive';
 import { Slot } from '@radix-ui/react-slot';
 import { useControllableState } from '@radix-ui/react-use-controllable-state';
 import { hideOthers } from 'aria-hidden';
+import * as React from 'react';
 import { RemoveScroll } from 'react-remove-scroll';
 
 import type { Scope } from '@radix-ui/react-context';
@@ -185,14 +185,14 @@ interface PopoverPortalProps {
    * Used to force mounting when more control is needed. Useful when
    * controlling animation with React animation libraries.
    */
-  forceMount?: true;
+  forceMount?: boolean;
 }
 
 const PopoverPortal: React.FC<PopoverPortalProps> = (props: ScopedProps<PopoverPortalProps>) => {
   const { __scopePopover, forceMount, children, container } = props;
   const context = usePopoverContext(PORTAL_NAME, __scopePopover);
   return (
-    <PortalProvider scope={__scopePopover} forceMount={forceMount}>
+    <PortalProvider scope={__scopePopover} forceMount={forceMount ? true : undefined}>
       <Presence present={forceMount || context.open}>
         <PortalPrimitive asChild container={container}>
           {children}
@@ -484,6 +484,80 @@ const PopoverArrow = React.forwardRef<PopoverArrowElement, PopoverArrowProps>(
 
 PopoverArrow.displayName = ARROW_NAME;
 
+/* -------------------------------------------------------------------------------------------------
+ * SubTrigger
+ * -----------------------------------------------------------------------------------------------*/
+
+const SUB_TRIGGER_NAME = 'PopoverSubTrigger';
+
+type SubTriggerElement = React.ElementRef<typeof Primitive.button>;
+type SubTriggerProps = React.ComponentPropsWithoutRef<typeof Primitive.button>;
+
+const PopoverSubTrigger = React.forwardRef<SubTriggerElement, ScopedProps<SubTriggerProps>>(
+  (props, forwardedRef) => {
+    const { __scopePopover, ...triggerProps } = props;
+    const context = usePopoverContext(SUB_TRIGGER_NAME, __scopePopover);
+    const [subOpen, setSubOpen] = React.useState(false);
+
+    const handleToggle = () => {
+      setSubOpen((prevOpen) => !prevOpen);
+    };
+
+    return (
+      <>
+        <Primitive.button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={subOpen}
+          aria-controls={context.contentId}
+          data-state={getState(subOpen)}
+          {...triggerProps}
+          ref={forwardedRef}
+          onClick={composeEventHandlers(triggerProps.onClick, handleToggle)}
+        />
+        {subOpen && (
+          <PopoverSubContent __scopePopover={__scopePopover}>
+            <p>This is the content of Sub Popover 1</p>
+          </PopoverSubContent>
+        )}
+      </>
+    );
+  }
+);
+
+PopoverSubTrigger.displayName = SUB_TRIGGER_NAME;
+
+/* -------------------------------------------------------------------------------------------------
+ * SubContent
+ * -----------------------------------------------------------------------------------------------*/
+
+const SUB_CONTENT_NAME = 'PopoverSubContent';
+
+type SubContentElement = React.ElementRef<typeof PopoverContent>;
+interface SubContentProps extends PopoverContentProps {}
+
+const PopoverSubContent = React.forwardRef<SubContentElement, ScopedProps<SubContentProps>>(
+  (props, forwardedRef) => {
+    const { __scopePopover, ...contentProps } = props;
+    const context = usePopoverContext(SUB_CONTENT_NAME, __scopePopover);
+
+    return (
+      <PopoverContent
+        {...contentProps}
+        ref={forwardedRef}
+        forceMount={true}
+        onClick={(e) => e.stopPropagation()} // Empêche la fermeture du Popover parent
+      />
+    );
+  }
+);
+
+PopoverSubContent.displayName = SUB_CONTENT_NAME;
+
+/* -----------------------------------------------------------------------------------------------*/
+
+export { PopoverSubContent, PopoverSubTrigger };
+
 /* -----------------------------------------------------------------------------------------------*/
 
 function getState(open: boolean) {
@@ -497,32 +571,36 @@ const Portal = PopoverPortal;
 const Content = PopoverContent;
 const Close = PopoverClose;
 const Arrow = PopoverArrow;
+const SubTrigger = PopoverSubTrigger;
+const SubContent = PopoverSubContent;
 
 export {
+  Anchor,
+  Arrow,
+  Close,
+  Content,
   createPopoverScope,
   //
   Popover,
   PopoverAnchor,
-  PopoverTrigger,
-  PopoverPortal,
-  PopoverContent,
-  PopoverClose,
   PopoverArrow,
+  PopoverClose,
+  PopoverContent,
+  PopoverPortal,
+  PopoverTrigger,
+  Portal,
   //
   Root,
-  Anchor,
+  SubContent,
+  SubTrigger,
   Trigger,
-  Portal,
-  Content,
-  Close,
-  Arrow,
 };
 export type {
-  PopoverProps,
   PopoverAnchorProps,
-  PopoverTriggerProps,
-  PopoverPortalProps,
-  PopoverContentProps,
-  PopoverCloseProps,
   PopoverArrowProps,
+  PopoverCloseProps,
+  PopoverContentProps,
+  PopoverPortalProps,
+  PopoverProps,
+  PopoverTriggerProps,
 };
