@@ -539,7 +539,6 @@ interface SubContentProps extends PopoverContentProps {}
 const PopoverSubContent = React.forwardRef<SubContentElement, ScopedProps<SubContentProps>>(
   (props, forwardedRef) => {
     const { __scopePopover, ...contentProps } = props;
-    const context = usePopoverContext(SUB_CONTENT_NAME, __scopePopover);
 
     return (
       <PopoverContent
